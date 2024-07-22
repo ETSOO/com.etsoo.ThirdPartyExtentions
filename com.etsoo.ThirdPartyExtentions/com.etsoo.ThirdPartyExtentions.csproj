@@ -1,0 +1,40 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>..\etsoo.snk</AssemblyOriginatorKeyFile>
+    <RepositoryType>Git</RepositoryType>
+    <RepositoryUrl>https://github.com/ETSOO/com.etsoo.ThirdPartyExtentions/com.etsoo.ThirdPartyExtentions</RepositoryUrl>
+    <Authors>ETSOO SmartERP NextGen Team</Authors>
+    <Company>ETSOO / 亿速思维</Company>
+    <Copyright>Copyright © ETSOO 2004 - 2024</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Description>ETSOO third-party library extension
+亿速思维第三方库扩展</Description>
+    <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
+    <Version>1.0.1</Version>
+    <AssemblyVersion>1.0.1.0</AssemblyVersion>
+    <FileVersion>1.0.1.0</FileVersion>
+    <PackageIcon>logo.png</PackageIcon>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <IsAotCompatible>true</IsAotCompatible>
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\logo.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="com.etsoo.HTTP" Version="1.0.56" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.0" />
+    <PackageReference Include="Minio" Version="6.0.3" />
+  </ItemGroup>
+
+</Project>
