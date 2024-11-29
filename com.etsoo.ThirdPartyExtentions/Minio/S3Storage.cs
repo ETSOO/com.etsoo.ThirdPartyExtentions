@@ -37,7 +37,7 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
 
         }
 
-        protected override string FormatPath(string path)
+        protected string LocalFormatPath(string path)
         {
             return path.Replace('\\', '/').Trim(' ', '/');
         }
@@ -214,7 +214,7 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
         /// <returns>Result</returns>
         public async ValueTask<IEnumerable<StorageEntry>?> ListEntriesAsync(string path, bool recursive, CancellationToken cancellationToken = default)
         {
-            path = FormatPath(path);
+            path = LocalFormatPath(path);
 
             var args = new ListObjectsArgs()
                 .WithBucket(Root)
@@ -279,7 +279,7 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
         /// <returns>Result</returns>
         public override async ValueTask<IDictionary<string, string>?> ReadTagsAsync(string path, CancellationToken cancellationToken = default)
         {
-            path = FormatPath(path);
+            path = LocalFormatPath(path);
 
             using var client = _factory.CreateClient();
             var args = new GetObjectTagsArgs()
@@ -302,7 +302,7 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
         /// <param name="cancellationToken">Cancellation token</param>
         public override async ValueTask<bool> WriteAsync(string path, Stream stream, WriteCase writeCase = WriteCase.CreateNew, IDictionary<string, string>? tags = null, CancellationToken cancellationToken = default)
         {
-            path = FormatPath(path);
+            path = LocalFormatPath(path);
 
             var exists = await FileExistsAsync(path, cancellationToken);
             if (exists && writeCase == WriteCase.CreateNew) return false;
@@ -348,7 +348,7 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
         /// <returns>Result</returns>
         public override async ValueTask<bool> WriteTagsAsync(string path, IDictionary<string, string> tags, CancellationToken cancellationToken = default)
         {
-            path = FormatPath(path);
+            path = LocalFormatPath(path);
 
             using var client = _factory.CreateClient();
 
