@@ -60,6 +60,7 @@ namespace TestProject
             // Assert
             var contentStream = await storage.ReadAsync(file);
             Assert.IsNotNull(contentStream);
+            Assert.IsTrue(contentStream.Position == 0);
             var contentActual = SharedUtils.StreamToString(contentStream);
             Assert.AreEqual(content, contentActual);
         }
