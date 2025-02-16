@@ -74,9 +74,10 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
         /// </summary>
         /// <param name="services">Services</param>
         /// <param name="configuration">Configuration</param>
+        /// <param name="clientSetup">Client setup</param>
         /// <param name="s3">Is S3 client or compatible storage client</param>
         /// <returns></returns>
-        public static IServiceCollection AddS3StorageClient(this IServiceCollection services, IConfigurationSection configuration, bool s3 = false)
+        public static IServiceCollection AddS3StorageClient(this IServiceCollection services, IConfigurationSection configuration, Action<IMinioClient, IServiceProvider>? clientSetup = null, bool s3 = false)
         {
             services.AddSingleton<IValidateOptions<S3StorageOptions>, ValidateS3StorageOptions>();
             services.AddOptions<S3StorageOptions>().Bind(configuration).ValidateOnStart();
@@ -87,7 +88,7 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
                 {
                     var endpoint = new Uri(options.Endpoint);
                     client.WithCredentials(options.AccessKey, options.SecretKey)
-                        .WithEndpoint(endpoint.Host)
+                        .WithEndpoint(endpoint)
                         .WithSSL(endpoint.Scheme == "https")
                     ;
 
@@ -95,6 +96,8 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
                     {
                         client.WithTimeout(options.Timeout.Value);
                     }
+
+                    clientSetup?.Invoke(client, provider);
                 });
             });
 
