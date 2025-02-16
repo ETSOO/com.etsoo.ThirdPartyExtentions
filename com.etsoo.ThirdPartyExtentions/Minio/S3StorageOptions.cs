@@ -1,5 +1,4 @@
 ﻿using com.etsoo.Utils.Storage;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using System.ComponentModel.DataAnnotations;
 
@@ -20,7 +19,10 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
         [Url]
         public string Endpoint { get; set; } = string.Empty;
 
-        public ServiceLifetime? Lifetime { get; set; }
+        /// <summary>
+        /// Timeout in milliseconds
+        /// </summary>
+        public int? Timeout { get; set; }
     }
 
     [OptionsValidator]

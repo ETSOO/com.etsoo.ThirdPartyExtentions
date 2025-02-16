@@ -15,7 +15,7 @@
     <Description>ETSOO third-party library extension
 亿速思维第三方库扩展</Description>
     <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
-    <Version>1.0.4</Version>
+    <Version>1.0.5</Version>
     <AssemblyVersion>1.0.1.0</AssemblyVersion>
     <FileVersion>1.0.1.0</FileVersion>
     <PackageIcon>logo.png</PackageIcon>
@@ -32,7 +32,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="com.etsoo.HTTP" Version="1.0.69" />
+    <PackageReference Include="com.etsoo.HTTP" Version="1.0.72" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="9.0.2" />
     <PackageReference Include="Minio" Version="6.0.4" />
   </ItemGroup>

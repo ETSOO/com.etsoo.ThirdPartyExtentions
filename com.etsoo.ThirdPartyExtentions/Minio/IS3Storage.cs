@@ -1,4 +1,6 @@
 ﻿using com.etsoo.Utils.Storage;
+using Microsoft.Extensions.Logging;
+using Minio.DataModel;
 
 namespace com.etsoo.ThirdPartyExtentions.Minio
 {
@@ -24,5 +26,25 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Result</returns>
         ValueTask<IEnumerable<StorageEntry>?> ListEntriesAsync(string path, bool recursive, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Async read file
+        /// 异步读文件
+        /// </summary>
+        /// <param name="path">Path</param>
+        /// <param name="callback">Callback</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Stream</returns>
+        ValueTask<Stream?> ReadAsync(string path, Action<ObjectStat, Stream>? callback = null, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Async stat object
+        /// 异步获取对象信息
+        /// </summary>
+        /// <param name="path">Object path</param>
+        /// <param name="logger">Logger</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns></returns>
+        Task<ObjectStat?> StatObjectAsync(string path, ILogger? logger = null, CancellationToken cancellationToken = default);
     }
 }

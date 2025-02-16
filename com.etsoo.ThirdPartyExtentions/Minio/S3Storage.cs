@@ -1,8 +1,10 @@
 ﻿using com.etsoo.HTTP;
 using com.etsoo.Utils.Storage;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Minio;
+using Minio.DataModel;
 using Minio.DataModel.Args;
 using Minio.DataModel.Tags;
 
@@ -37,6 +39,12 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
 
         }
 
+        /// <summary>
+        /// Local format path
+        /// 本地格式化路径
+        /// </summary>
+        /// <param name="path">Path</param>
+        /// <returns>Result</returns>
         protected string LocalFormatPath(string path)
         {
             return path.Replace('\\', '/').Trim(' ', '/');
@@ -76,6 +84,8 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
         /// <param name="cancellationToken">Cancellation token</param>
         public override async ValueTask<bool> DeleteAsync(string path, CancellationToken cancellationToken = default)
         {
+            path = LocalFormatPath(path);
+
             var args = new RemoveObjectArgs()
                 .WithBucket(Root)
                 .WithObject(path)
@@ -136,14 +146,17 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
         }
 
         /// <summary>
-        /// Async check file exists
-        /// 异步检查文件是否存在
+        /// Async stat object
+        /// 异步获取对象信息
         /// </summary>
-        /// <param name="path">Path</param>
+        /// <param name="path">Object path</param>
+        /// <param name="logger">Logger</param>
         /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>Result</returns>
-        public override async ValueTask<bool> FileExistsAsync(string path, CancellationToken cancellationToken = default)
+        /// <returns></returns>
+        public async Task<ObjectStat?> StatObjectAsync(string path, ILogger? logger = null, CancellationToken cancellationToken = default)
         {
+            path = LocalFormatPath(path);
+
             var args = new StatObjectArgs()
                 .WithBucket(Root)
                 .WithObject(path)
@@ -153,13 +166,27 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
 
             try
             {
-                await client.StatObjectAsync(args, cancellationToken);
-                return true;
+                var obj = await client.StatObjectAsync(args, cancellationToken);
+                return obj;
             }
-            catch
+            catch (Exception ex)
             {
-                return false;
+                logger?.LogError(ex, "StatObjectAsync {path} error", path);
+                return null;
             }
+        }
+
+        /// <summary>
+        /// Async check file exists
+        /// 异步检查文件是否存在
+        /// </summary>
+        /// <param name="path">Path</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Result</returns>
+        public override async ValueTask<bool> FileExistsAsync(string path, CancellationToken cancellationToken = default)
+        {
+            var obj = await StatObjectAsync(path, null, cancellationToken);
+            return obj != null;
         }
 
         /// <summary>
@@ -252,22 +279,43 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
         /// <param name="path">Path</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Stream</returns>
-        public override async ValueTask<Stream?> ReadAsync(string path, CancellationToken cancellationToken = default)
+        public override ValueTask<Stream?> ReadAsync(string path, CancellationToken cancellationToken = default)
         {
-            var contentStream = new MemoryStream();
+            return ReadAsync(path, null, cancellationToken);
+        }
 
-            var args = new GetObjectArgs()
-                .WithBucket(Root)
-                .WithObject(path)
-                .WithCallbackStream((stream, token) => stream.CopyToAsync(contentStream, token))
-            ;
+        /// <summary>
+        /// Async read file
+        /// 异步读文件
+        /// </summary>
+        /// <param name="path">Path</param>
+        /// <param name="callback">Callback</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Stream</returns>
+        public async ValueTask<Stream?> ReadAsync(string path, Action<ObjectStat, Stream>? callback = null, CancellationToken cancellationToken = default)
+        {
+            path = LocalFormatPath(path);
 
-            using var client = _factory.CreateClient();
-            await client.GetObjectAsync(args, cancellationToken);
+            return await Task.Run(() =>
+            {
+                var contentStream = new MemoryStream();
 
-            contentStream.Seek(0, SeekOrigin.Begin);
+                var args = new GetObjectArgs()
+                    .WithBucket(Root)
+                    .WithObject(path)
+                    .WithCallbackStream((stream, token) => stream.CopyToAsync(contentStream, token))
+                ;
 
-            return contentStream;
+                using var client = _factory.CreateClient();
+
+                var obj = client.GetObjectAsync(args).GetAwaiter().GetResult();
+
+                callback?.Invoke(obj, contentStream);
+
+                contentStream.Seek(0, SeekOrigin.Begin);
+
+                return contentStream;
+            }, cancellationToken);
         }
 
         /// <summary>
