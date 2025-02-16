@@ -7,6 +7,7 @@ using Minio;
 using Minio.DataModel;
 using Minio.DataModel.Args;
 using Minio.DataModel.Tags;
+using Minio.Exceptions;
 
 namespace com.etsoo.ThirdPartyExtentions.Minio
 {
@@ -169,10 +170,14 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
                 var obj = await client.StatObjectAsync(args, cancellationToken);
                 return obj;
             }
+            catch (ObjectNotFoundException)
+            {
+                return null;
+            }
             catch (Exception ex)
             {
-                logger?.LogError(ex, "StatObjectAsync {path} error", path);
-                return null;
+                logger?.LogWarning(ex, "Error checking file {path} existence", path);
+                throw;
             }
         }
 
@@ -250,9 +255,10 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
             ;
 
             using var client = _factory.CreateClient();
-            var entries = client.ListObjectsEnumAsync(args, cancellationToken);
 
             var result = new List<StorageEntry>();
+
+            var entries = client.ListObjectsEnumAsync(args, cancellationToken);
             await foreach (var entry in entries)
             {
                 var size = Convert.ToInt64(entry.Size);
@@ -296,26 +302,23 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
         {
             path = LocalFormatPath(path);
 
-            return await Task.Run(() =>
-            {
-                var contentStream = new MemoryStream();
+            var contentStream = new MemoryStream();
 
-                var args = new GetObjectArgs()
-                    .WithBucket(Root)
-                    .WithObject(path)
-                    .WithCallbackStream((stream, token) => stream.CopyToAsync(contentStream, token))
-                ;
+            var args = new GetObjectArgs()
+                .WithBucket(Root)
+                .WithObject(path)
+                .WithCallbackStream((stream, token) => stream.CopyToAsync(contentStream, token))
+            ;
 
-                using var client = _factory.CreateClient();
+            using var client = _factory.CreateClient();
 
-                var obj = client.GetObjectAsync(args).GetAwaiter().GetResult();
+            var obj = await client.GetObjectAsync(args, cancellationToken);
 
-                callback?.Invoke(obj, contentStream);
+            callback?.Invoke(obj, contentStream);
 
-                contentStream.Seek(0, SeekOrigin.Begin);
+            contentStream.Seek(0, SeekOrigin.Begin);
 
-                return contentStream;
-            }, cancellationToken);
+            return contentStream;
         }
 
         /// <summary>

@@ -3,6 +3,7 @@ using com.etsoo.Utils;
 using com.etsoo.Utils.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using System.Text;
 
 namespace TestProject
@@ -10,7 +11,9 @@ namespace TestProject
     [TestClass]
     public class MinoTests
     {
-        readonly static IStorage storage;
+        readonly static IS3Storage storage;
+        readonly static IStorage localStorage;
+        readonly static HealthCheckService hcService;
 
         static MinoTests()
         {
@@ -20,11 +23,25 @@ namespace TestProject
 
             var minioSection = configuration.GetSection("Minio");
 
+            var storageOptions = configuration.GetSection("Storage").Get<StorageOptions>() ?? throw new Exception("Storage configuration not found");
+
             var services = new ServiceCollection();
-            services.AddS3StorageClient(minioSection);
+
+            services.AddLogging();
+
+            var ls = new LocalStorage(storageOptions);
+            services.AddSingleton<IStorage>(ls);
+
+            services.AddS3StorageClient(minioSection, true);
+
+            services.AddHealthChecks()
+                .AddS3Storage()
+                .AddLocalStorage("C:\\test\\", 50000000);
 
             var serviceProvider = services.BuildServiceProvider();
-            storage = serviceProvider.GetRequiredService<IStorage>();
+            storage = serviceProvider.GetRequiredService<IS3Storage>();
+            localStorage = serviceProvider.GetRequiredService<IStorage>();
+            hcService = serviceProvider.GetRequiredService<HealthCheckService>();
         }
 
         [ClassCleanup()]
@@ -54,15 +71,29 @@ namespace TestProject
             Assert.IsNotNull(stream);
 
             // Act
-            await stream.WriteAsync(Encoding.UTF8.GetBytes(content));
+            var bytes = Encoding.UTF8.GetBytes(content);
+            await stream.WriteAsync(bytes);
             await stream.DisposeAsync();
 
             // Assert
             var contentStream = await storage.ReadAsync(file);
             Assert.IsNotNull(contentStream);
-            Assert.IsTrue(contentStream.Position == 0);
+            Assert.AreEqual(0, contentStream.Position);
+            Assert.IsTrue(contentStream.Length == bytes.Length);
+
             var contentActual = SharedUtils.StreamToString(contentStream);
             Assert.AreEqual(content, contentActual);
+        }
+
+        [TestMethod]
+        public async Task S3HealthCheckTest()
+        {
+            // Act
+            var result = await hcService.CheckHealthAsync();
+
+            // Assert
+            Assert.IsTrue(result.Entries.ContainsKey(S3StorageServiceCollectionExtensions.S3StorageKey));
+            Assert.AreEqual(HealthStatus.Unhealthy, result.Status);
         }
     }
 }
