@@ -4,7 +4,6 @@ using com.etsoo.Utils.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Minio;
 using System.Text;
 
 namespace TestProject
@@ -34,13 +33,7 @@ namespace TestProject
             var ls = new LocalStorage(storageOptions);
             services.AddSingleton<IStorage>(ls);
 
-            services.AddS3StorageClient(minioSection, (client, sp) =>
-            {
-                var factory = sp.GetRequiredService<IHttpClientFactory>();
-                var hc = factory.CreateClient();
-                hc.DefaultRequestHeaders.ConnectionClose = true;
-                client.WithHttpClient(hc);
-            }, true);
+            services.AddS3StorageClient(minioSection, null, true);
 
             services.AddHealthChecks()
                 .AddS3Storage()

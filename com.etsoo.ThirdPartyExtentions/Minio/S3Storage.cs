@@ -17,8 +17,40 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
     /// </summary>
     public class S3Storage : StorageBase, IS3Storage
     {
+        /// <summary>
+        /// Create a Minio client factory
+        /// 创建 Minio 客户端工厂
+        /// </summary>
+        /// <param name="options">Options</param>
+        /// <param name="clientSetup">Client setup</param>
+        /// <returns>Result</returns>
+        public static MinioClientFactory CreateFactory(S3StorageOptions options, Action<IMinioClient>? clientSetup = null)
+        {
+            return new MinioClientFactory(ClientSetup(options, clientSetup));
+        }
+
+        static Action<IMinioClient> ClientSetup(S3StorageOptions options, Action<IMinioClient>? clientSetup = null)
+        {
+            return client =>
+            {
+                var endpoint = new Uri(options.Endpoint);
+                client.WithCredentials(options.AccessKey, options.SecretKey)
+                    .WithEndpoint(endpoint)
+                    .WithSSL(endpoint.Scheme == Uri.UriSchemeHttps)
+                ;
+
+                if (options.Timeout.HasValue)
+                {
+                    client.WithTimeout(options.Timeout.Value);
+                }
+
+                clientSetup?.Invoke(client);
+            };
+        }
+
         private readonly IMinioClientFactory _factory;
         private readonly S3StorageOptions _options;
+        private readonly bool _setupClient;
 
         /// <summary>
         /// Constructor
@@ -26,11 +58,13 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
         /// </summary>
         /// <param name="factory">Client factory</param>
         /// <param name="options">Options</param>
-        public S3Storage(IMinioClientFactory factory, S3StorageOptions options)
+        /// <param name="setupClient">Setup client during creation</param>
+        public S3Storage(IMinioClientFactory factory, S3StorageOptions options, bool setupClient = false)
             : base(options.Root, options.URLRoot)
         {
             _factory = factory;
             _options = options;
+            _setupClient = setupClient;
         }
 
         [ActivatorUtilitiesConstructor]
@@ -49,6 +83,23 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
         protected string LocalFormatPath(string path)
         {
             return path.Replace('\\', '/').Trim(' ', '/');
+        }
+
+        /// <summary>
+        /// Create a Minio client
+        /// 创建 Minio 客户端
+        /// </summary>
+        /// <returns>Result</returns>
+        protected virtual IMinioClient CreateClient()
+        {
+            if (_setupClient)
+            {
+                return _factory.CreateClient(ClientSetup(_options));
+            }
+            else
+            {
+                return _factory.CreateClient();
+            }
         }
 
         /// <summary>
@@ -71,7 +122,7 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
 
             if (tags != null) args.WithTagging(new Tagging(tags, true));
 
-            using var client = _factory.CreateClient();
+            using var client = CreateClient();
             await client.CopyObjectAsync(args, cancellationToken);
 
             return true;
@@ -92,7 +143,7 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
                 .WithObject(path)
             ;
 
-            using var client = _factory.CreateClient();
+            using var client = CreateClient();
 
             try
             {
@@ -118,7 +169,7 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
                 .WithObjects(paths)
             ;
 
-            using var client = _factory.CreateClient();
+            using var client = CreateClient();
 
             try
             {
@@ -143,7 +194,7 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
             var entries = await ListEntriesAsync(path, true, cancellationToken);
             if (entries == null) return false;
 
-            return await DeleteAsync(entries.Select(e => e.FullName).ToList(), cancellationToken);
+            return await DeleteAsync([.. entries.Select(e => e.FullName)], cancellationToken);
         }
 
         /// <summary>
@@ -163,7 +214,7 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
                 .WithObject(path)
             ;
 
-            using var client = _factory.CreateClient();
+            using var client = CreateClient();
 
             try
             {
@@ -254,7 +305,7 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
                 .WithRecursive(recursive)
             ;
 
-            using var client = _factory.CreateClient();
+            using var client = CreateClient();
 
             var result = new List<StorageEntry>();
 
@@ -310,7 +361,7 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
                 .WithCallbackStream((stream, token) => stream.CopyToAsync(contentStream, token))
             ;
 
-            using var client = _factory.CreateClient();
+            using var client = CreateClient();
 
             var obj = await client.GetObjectAsync(args, cancellationToken);
 
@@ -332,7 +383,7 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
         {
             path = LocalFormatPath(path);
 
-            using var client = _factory.CreateClient();
+            using var client = CreateClient();
             var args = new GetObjectTagsArgs()
                 .WithBucket(Root)
                 .WithObject(path)
@@ -383,7 +434,7 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
             var mimeType = MimeTypeMap.TryGetMimeType(Path.GetExtension(path));
             if (!string.IsNullOrEmpty(mimeType)) args.WithContentType(mimeType);
 
-            using var client = _factory.CreateClient();
+            using var client = CreateClient();
             var response = await client.PutObjectAsync(args, cancellationToken);
 
             return response.Etag != null;
@@ -401,7 +452,7 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
         {
             path = LocalFormatPath(path);
 
-            using var client = _factory.CreateClient();
+            using var client = CreateClient();
 
             if (tags.Count == 0)
             {

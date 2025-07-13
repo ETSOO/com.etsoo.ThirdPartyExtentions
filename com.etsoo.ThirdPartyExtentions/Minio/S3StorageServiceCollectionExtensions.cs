@@ -77,28 +77,14 @@ namespace com.etsoo.ThirdPartyExtentions.Minio
         /// <param name="clientSetup">Client setup</param>
         /// <param name="s3">Is S3 client or compatible storage client</param>
         /// <returns></returns>
-        public static IServiceCollection AddS3StorageClient(this IServiceCollection services, IConfigurationSection configuration, Action<IMinioClient, IServiceProvider>? clientSetup = null, bool s3 = false)
+        public static IServiceCollection AddS3StorageClient(this IServiceCollection services, IConfigurationSection configuration, Action<IMinioClient>? clientSetup = null, bool s3 = false)
         {
             services.AddSingleton<IValidateOptions<S3StorageOptions>, ValidateS3StorageOptions>();
             services.AddOptions<S3StorageOptions>().Bind(configuration).ValidateOnStart();
             services.AddSingleton<IMinioClientFactory>((provider) =>
             {
                 var options = provider.GetRequiredService<IOptions<S3StorageOptions>>().Value;
-                return new MinioClientFactory(client =>
-                {
-                    var endpoint = new Uri(options.Endpoint);
-                    client.WithCredentials(options.AccessKey, options.SecretKey)
-                        .WithEndpoint(endpoint)
-                        .WithSSL(endpoint.Scheme == "https")
-                    ;
-
-                    if (options.Timeout.HasValue)
-                    {
-                        client.WithTimeout(options.Timeout.Value);
-                    }
-
-                    clientSetup?.Invoke(client, provider);
-                });
+                return S3Storage.CreateFactory(options, clientSetup);
             });
 
             if (s3)
